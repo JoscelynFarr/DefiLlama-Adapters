@@ -13,22 +13,45 @@ const contractAbis = {
   getUnderlyingPrice: "function getUnderlyingPrice(address cToken) view returns (uint256)",
   getUniswapPrice:
     "function slot0() view returns (uint160 sqrtPriceX96, int24 tick, uint16 observationIndex, uint16 observationCardinality, uint16 observationCardinalityNext, uint8 observationCardinalityNext, uint8 observationCardinalityNext)",
+  getMantleBalance: "function balances(address) view returns (uint256)",
 };
 
 module.exports = {
   misrepresentedTokens: true,
 
+  mantle: {
+    tvl: async (api) => {
+      const mantle = {
+        vault: "0xf9B484901BCA34A8615c90E8C4933f1Bd553B639",
+        lending: "0x08ccF72358B44D9d45438Fc703962A0a2FD5c978",
+        staking: "0x9f39dC8eA0a73ab462d23104699AFAE9c30d1E4f",
+      };
+
+      const stakedBalance = await api.call({
+        abi: contractAbis.getMantleBalance,
+        target: mantle.staking,
+        params: [mantle.vault],
+      });
+
+      api.add(ADDRESSES.mantle.WMNT, stakedBalance);
+
+      await api.sumTokens({
+        tokensAndOwners: [[ADDRESSES.mantle.WMNT, mantle.lending]],
+      });
+    },
+  },
+
   karak: {
     tvl: async (api) => {
-      //       const KUSDC = {
-      //         vault: "0x4c18E80b801AA24066D8B1C6E65ee245497Cb741",
-      //         token: "0x7AFAa2428c379862984A3fdF517BbeaA1487A32c",
-      //       };
-      //
-      //       const KWETH = {
-      //         vault: "0x5c7a8e3d4c0e382f8c3b6f6a3b7c9d3d1f9e6b9c",
-      //         token: "0x9a9631F7BEcE5C6E0aBA1f73f0e5796c534dc4db",
-      //       };
+      const KUSDC = {
+        vault: "0x4c18E80b801AA24066D8B1C6E65ee245497Cb741",
+        token: "0xa415021bC5c4C3b5B989116DC35Ae95D9C962c8D",
+      };
+
+      const KWETH = {
+        vault: "0x9a9631F7BEcE5C6E0aBA1f73f0e5796c534dc4db",
+        token: "0x4200000000000000000000000000000000000006",
+      };
 
       const wethLending = {
         vault: "0xd6034F9147CF7528e857403Dea93bc45743295eb",
@@ -40,12 +63,9 @@ module.exports = {
         token: "0xa415021bC5c4C3b5B989116DC35Ae95D9C962c8D",
       };
 
-      //       const bal1 = await api.call({ target: KUSDC.token, abi: contractAbis.getDeposits, params: [KUSDC.vault] });
-      //
-      //       console.log(bal1);
-      //
-      //       const bal2 = await api.call({ target: KWETH.token, abi: contractAbis.getDeposits, params: [KWETH.vault] });
-      //       console.log(bal2);
+      const KarakUSDCBal = await api.call({ target: KUSDC.vault, abi: contractAbis.getTotalSupply });
+
+      const KarakWETHbal = await api.call({ target: KWETH.vault, abi: contractAbis.getTotalSupply });
 
       const strategies = [wethLending, usdcLending];
 
@@ -54,6 +74,9 @@ module.exports = {
       strategies.forEach(({ vault, token }) => tokensAndOwners.push([token, vault]));
 
       await api.sumTokens({ tokensAndOwners });
+
+      api.add(KUSDC.token, KarakUSDCBal);
+      api.add(KWETH.token, KarakWETHbal);
     },
   },
 
